@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # 1. 데이터베이스 (PostgreSQL)
+  postgres:
+    image: postgres:16
+    container_name: diary-postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: diarydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/db:/var/lib/postgresql/data # 데이터를 로컬 폴더에 영구 저장
+    restart: always
+
+  # 2. 메시지 브로커 (Redis) - 백엔드와 AI 서버 통신용
+  redis:
+    image: redis:alpine
+    container_name: diary-redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+# (참고) Python AI 서버와 Spring Boot는 나중에 코드가 완성되면 여기에 추가합니다.

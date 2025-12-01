@@ -13,3 +13,6 @@ logs/
 
 # Docker (나중에 사용)
 .env
+
+# Docker Database Data
+data/
