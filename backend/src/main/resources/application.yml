@@ -2,11 +2,10 @@ spring:
   application:
     name: diary-backend
 
-  datasource:  # spring 바로 아래가 아니라, 들여쓰기 2칸 필수!
-    url: jdbc:postgresql://localhost:5432/diarydb
-    username: user
-    password: password
-    driver-class-name: org.postgresql.Driver
+  datasource:
+    datasource:
+      url: jdbc:postgresql://db.eensskjncsooyuxbfokm.supabase.co:5432/postgres?user=postgres&password=Lakezzang123@&sslmode=require
+      driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
@@ -14,4 +13,5 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
