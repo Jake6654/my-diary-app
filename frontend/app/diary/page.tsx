@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Plus,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type Todo = {
   id: number;
@@ -21,6 +22,9 @@ type Todo = {
 };
 
 export default function DiaryPage() {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+
   const [content, setContent] = useState("");
   const [mood, setMood] = useState<string | null>(null);
 
@@ -34,6 +38,66 @@ export default function DiaryPage() {
     { id: "angry", label: "Angry", emoji: "😡" },
     { id: "chill", label: "Chill", emoji: "😌" },
   ];
+
+  const handleSaveDiary = async () => {
+    try {
+      setSaving(true);
+
+      // 1) 로그인 유저 정보 가져오기
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData.session?.user;
+      if (!user) {
+        alert("You need to log in to save your diary.");
+        setSaving(false);
+        return;
+      }
+
+      const userId = user.id; // Supabase auth.users의 id (uuid)
+
+      // 2) 오늘 날짜 만들기 (YYYY-MM-DD)
+      const today = new Date();
+      const entryDate = today.toISOString().slice(0, 10); // '2025-12-03'
+
+      // 3) 백엔드에 보낼 데이터 (DiaryRequest와 맞춤)
+      const diaryData = {
+        userId,
+        entryDate, // 서버에서는 LocalDate로 파싱
+        content,
+        mood: mood ?? "chill", // mood가 null일 경우 대비 기본값
+        todo: JSON.stringify(todos),
+        reflection:
+          todos
+            .map((t) => t.reflection)
+            .filter(Boolean)
+            .join("\n") || "",
+        illustrationUrl: null, // 나중에 AI 연결하면 채우기
+      };
+
+      // 4) 백엔드 호출
+      const res = await fetch("http://localhost:8080/api/diaries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(diaryData),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to save diary", await res.text());
+        alert("Failed to save diary. Please try again.");
+        setSaving(false);
+        return;
+      }
+
+      // 5) 성공하면 Board로 이동
+      router.push("/diary-board");
+    } catch (err) {
+      console.error("Error saving diary:", err);
+      alert("Unexpected error while saving diary.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const addTodo = () => {
     if (!newTodo.trim()) return;
@@ -303,8 +367,8 @@ export default function DiaryPage() {
 
               <button
                 type="button"
+                onClick={handleSaveDiary}
                 className="px-4 md:px-6 py-2 border-2 border-black bg-[#4D96FF] text-white shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
-                // TODO: 나중에 백엔드 /api/diary 저장 호출
               >
                 Save Diary
               </button>

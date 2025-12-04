@@ -13,7 +13,7 @@ type Mood = "happy" | "sad" | "angry" | "chill";
 
 type DiaryEntry = {
   id: string;
-  date: string; // ISO string: "2025-12-03"
+  entryDate: string; // ISO string: "2025-12-03"
   mood: Mood;
   summary: string;
 };
@@ -21,23 +21,23 @@ type DiaryEntry = {
 const MOCK_DIARIES: DiaryEntry[] = [
   {
     id: "1",
-    date: "2025-11-18",
+    entryDate: "2025-11-18",
     mood: "happy",
     summary:
-      "프로젝트 첫 시작일. 분명 나는 개발자인데 디자인 컨셉 잡는데 제일 시간을 많이 쓴다...",
+      "First day of this project. I’m a backend dev, but somehow I spent the most time on the visual concept...",
   },
   {
     id: "2",
-    date: "2025-12-01",
+    entryDate: "2025-12-01",
     mood: "chill",
-    summary: "아 이제 이번 학기도 얼마 안 남았구나~",
+    summary: "Wow, the semester is almost over already.",
   },
   {
     id: "3",
-    date: "2025-12-03",
+    entryDate: "2025-12-03",
     mood: "angry",
     summary:
-      "프론트 엔드에서 ㅈ버그 때문에 한참을 삽질했지만, 결국 해결해서 뿌듯했다.",
+      "Got stuck on a frontend bug for ages, but finally fixed it. So tired but so proud.",
   },
 ];
 
@@ -119,7 +119,7 @@ function generateMonthDays(year: number, month: number): CalendarDay[] {
 }
 
 export default function DiaryBoardPage() {
-  // 🔹 지금은 현재 달만 사용 (나중에 상태로 바꿔서 월 이동 가능)
+  // 🔹 지금은 현재 달만 사용 (나중에 state로 바꿔서 월 이동 가능)
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth(); // 0-11
@@ -138,7 +138,7 @@ export default function DiaryBoardPage() {
   const diaryByDate = useMemo(() => {
     const map = new Map<string, DiaryEntry>();
     for (const d of MOCK_DIARIES) {
-      map.set(d.date, d);
+      map.set(d.entryDate, d);
     }
     return map;
   }, []);
@@ -205,7 +205,7 @@ export default function DiaryBoardPage() {
 
                     {/* Paper */}
                     <Link
-                      href={`/diary/${diary.date}`}
+                      href={`/diary/${diary.entryDate}`}
                       className="block origin-top hover:-rotate-3 hover:-translate-y-1 transition-transform"
                     >
                       <div
@@ -213,7 +213,7 @@ export default function DiaryBoardPage() {
                         style={{ backgroundColor: color }}
                       >
                         <div className="text-xs font-bold text-gray-700 mb-1">
-                          {diary.date}
+                          {diary.entryDate}
                         </div>
                         <div className="flex items-center gap-1 text-xs font-bold mb-2">
                           <span>{moodMeta.emoji}</span>
