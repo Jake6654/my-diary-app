@@ -1,7 +1,71 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
 import { BookHeart, Sparkles, Paintbrush, PenTool } from "lucide-react";
 
 export default function Home() {
+  // 기본적인 유저의 이름, 이메일 같은 데이터는 바로바로 없데이트가 되어야 하기 때문에
+  // 그냥 프론트에서 state 로 관리, 더 깊은 데이터들은 백으로 관리하는게 정석
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // 1) 처음 로드될 때 현재 로그인된 유저 가져오기
+  // 1) 처음 로드될 때 현재 로그인된 유저 가져오기
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user ?? null);
+      setLoadingUser(false);
+    };
+
+    loadUser();
+
+    // 2) 로그인/로그아웃이 바뀔 때마다 상태 업데이트
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 3) 구글 로그인
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: "http://localhost:3000/auth/callback",
+      },
+    });
+
+    if (error) {
+      console.error("Google login error:", error);
+      alert("Google 로그인 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 4) 로그아웃
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  // 유저 정보 (닉네임 / 프로필) 추출
+  const displayName =
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.user_metadata?.name as string | undefined) ||
+    user?.email ||
+    "User";
+
+  const avatarUrl =
+    (user?.user_metadata?.avatar_url as string | undefined) ||
+    (user?.user_metadata?.picture as string | undefined) ||
+    null;
+
   return (
     <div className="relative min-h-screen font-mono bg-[#f4f3ee] text-black overflow-x-hidden">
       {/* 배경 질감 */}
@@ -14,7 +78,7 @@ export default function Home() {
       ></div>
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        {/* [수정됨] 1. Navigation Bar: 배경은 꽉 채우고(Wrapper), 내용은 가운데 정렬(Inner) */}
+        {/* Navigation Bar */}
         <nav className="w-full border-b-4 border-black bg-white/50 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
             {/* 로고 */}
@@ -23,13 +87,40 @@ export default function Home() {
               <span>AI.Toon.Diary</span>
             </div>
 
-            {/* 로그인 버튼 */}
-            <Link
-              href="/auth/login"
-              className="px-6 py-2 font-bold border-2 border-black bg-[#FF6B6B] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
-            >
-              Login
-            </Link>
+            {/* 오른쪽 영역: 로그인 전/후 상태에 따라 분기 */}
+            {loadingUser ? (
+              <div className="text-sm font-bold">Loading...</div>
+            ) : user ? (
+              // ✅ 로그인 된 상태
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  {avatarUrl && (
+                    <img
+                      src={avatarUrl}
+                      alt="profile"
+                      className="w-8 h-8 rounded-full border-2 border-black object-cover"
+                    />
+                  )}
+                  <span className="font-bold text-sm md:text-base">
+                    {displayName}
+                  </span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 font-bold border-2 border-black bg-white text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all text-sm md:text-base"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              // ❌ 로그인 안 된 상태
+              <button
+                onClick={handleGoogleLogin}
+                className="px-6 py-2 font-bold border-2 border-black bg-[#FF6B6B] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+              >
+                Login with Google
+              </button>
+            )}
           </div>
         </nav>
 
