@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+
 type Todo = {
   id: number;
   text: string;
@@ -74,7 +77,7 @@ export default function DiaryPage() {
       };
 
       // 4) 백엔드 호출
-      const res = await fetch("http://localhost:8080/api/diaries", {
+      const res = await fetch(`${API_BASE_URL}/api/diaries`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
