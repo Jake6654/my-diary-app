@@ -13,3 +13,6 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+ai:
+  flux:
+    base-url: "http://34.48.232.74:8000"

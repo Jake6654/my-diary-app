@@ -17,6 +17,16 @@ import java.util.UUID;
 public class DiaryController {
 
     private final DiaryRepository diaryRepository;
+    private final FluxIllustrationClient fluxIllustrationClient;
+
+
+    @GetMapping("/ai-test")
+    public String testAi() {
+        String url = fluxIllustrationClient.generateImageUrl(
+                "오늘은 스프링이랑 AI 서비스 연결 테스트를 했다!"
+        );
+        return url;
+    }
 
 
     // Store
@@ -34,10 +44,25 @@ public class DiaryController {
         diary.setUserId(userUuid);
         diary.setEntryDate(entryDate);
         diary.setContent(request.content());
-        diary.setMood(request.mood());
+        diary.setMood(request.mood() != null ? request.mood().toLowerCase() : null);
         diary.setTodo(request.todo());
         diary.setReflection(request.reflection());
         diary.setIllustrationUrl(request.illustrationUrl());
+
+        // 프론트에서 직접 illustrationUrl을 보냈다면 우선 적용
+        if (request.illustrationUrl() != null && !request.illustrationUrl().isBlank()) {
+            diary.setIllustrationUrl(request.illustrationUrl());
+        }
+
+        String imageUrl;
+        try {
+            imageUrl = fluxIllustrationClient.generateImageUrl(diary.getContent());
+        } catch (Exception e) {
+            e.printStackTrace();
+            imageUrl = null; // fallback
+        }
+        diary.setIllustrationUrl(imageUrl);
+
 
         // when there's no diary on a day
         LocalDateTime now = LocalDateTime.now();
@@ -79,6 +104,5 @@ public class DiaryController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
-
 
 }
