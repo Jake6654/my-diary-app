@@ -1,4 +1,4 @@
 package com.mydiary.backend.diary;
 
-public record GenerateRequest() {
+public record GenerateRequest(String diary_text) {
 }
