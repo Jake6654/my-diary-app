@@ -6,7 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/diaries")
@@ -18,24 +21,39 @@ public class DiaryController {
 
     // Store
     @PostMapping
-    public ResponseEntity<Diary> saveDiary(@RequestBody DiaryRequest request){
-        Diary diary = Diary.builder()
-                .userId(request.userId())
-                .entryDate(request.entryDate())
-                .content(request.content())
-                .mood(request.mood())
-                .todo(request.todo())
-                .reflection(request.reflection())
-                .illustrationUrl(request.illustrationUrl())
-                .build();
+    public ResponseEntity<Diary> saveDiary(@RequestBody DiaryRequest request) {
 
-        diaryRepository.save(diary);
-        return ResponseEntity.ok().build();
+        UUID userUuid = UUID.fromString(request.userId());
+        LocalDate entryDate = request.entryDate();
+
+        Optional<Diary> existing =
+                diaryRepository.findByUserIdAndEntryDate(userUuid, entryDate);
+
+        Diary diary = existing.orElseGet(Diary::new);
+
+        diary.setUserId(userUuid);
+        diary.setEntryDate(entryDate);
+        diary.setContent(request.content());
+        diary.setMood(request.mood());
+        diary.setTodo(request.todo());
+        diary.setReflection(request.reflection());
+        diary.setIllustrationUrl(request.illustrationUrl());
+
+        // when there's no diary on a day
+        LocalDateTime now = LocalDateTime.now();
+        if (diary.getId() == null) {
+            // 새 레코드일 때만 created_at 설정
+            diary.setCreatedAt(String.valueOf(now));
+        }
+        diary.setUpdatedAt(String.valueOf(now));
+
+        Diary saved = diaryRepository.save(diary);
+        return ResponseEntity.ok(saved);
     }
 
     @GetMapping
     public List<DiarySummaryResponse> getDiaries(@RequestParam String userId){
-        return diaryRepository.findByUserIdOrderByEntryDateDesc(userId)
+        return diaryRepository.findByUserIdOrderByEntryDateDesc(UUID.fromString(userId))
                 .stream()
                 .map(d -> new DiarySummaryResponse(
                         d.getId(),
@@ -53,11 +71,13 @@ public class DiaryController {
 
     // get the diary for a specific date
     @GetMapping("/{date}")
-    public Diary getDiaryByDate(
+    public ResponseEntity<Diary> getDiaryByDate(
             @PathVariable String date,
-            @RequestParam String userID
+            @RequestParam  UUID userId
     ){
-        return diaryRepository.findByUserIdAndEntryDate(userID, LocalDate.parse(date)).orElseThrow();
+        return diaryRepository.findByUserIdAndEntryDate(userId, LocalDate.parse(date))
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
 

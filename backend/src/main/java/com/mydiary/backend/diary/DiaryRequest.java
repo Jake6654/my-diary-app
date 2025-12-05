@@ -1,5 +1,8 @@
 package com.mydiary.backend.diary;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDate;
 
 public record DiaryRequest(

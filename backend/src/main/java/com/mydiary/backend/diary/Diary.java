@@ -5,6 +5,8 @@ import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 import java.time.LocalDate;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "diaries")
 @Getter @Setter
@@ -19,7 +21,7 @@ public class Diary {
     private String id;
 
     @Column(name = "user_id", nullable = false)
-    private String userId;
+    private UUID userId;
 
     @Column(name = "entry_date", nullable = false)
     private LocalDate entryDate;
