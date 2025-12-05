@@ -1,8 +1,9 @@
+// components/diary/DiaryEditor.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient"; // 나중에 쓸 수도 있으니 있어도 됨
+import { useRouter } from "next/navigation";
 import {
   BookHeart,
   PenTool,
@@ -12,38 +13,80 @@ import {
   CheckCircle2,
   Plus,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
-type Todo = {
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+
+export type Todo = {
   id: number;
   text: string;
   done: boolean;
   reflection: string;
 };
 
-export default function DiaryPage() {
+type DiaryEditorMode = "create" | "edit";
+
+type DiaryEditorProps = {
+  mode: DiaryEditorMode;
+  /** YYYY-MM-DD */
+  date: string;
+  /** 기존 일기 열 때 채워넣을 값들 (없으면 빈 상태) */
+  initialContent?: string;
+  initialMood?: string | null;
+  initialTodos?: Todo[];
+  /** 뒤로가기 버튼 링크 (기본: "/") */
+  backHref?: string;
+  /** 데스크탑에서 보이는 라벨 */
+  backLabelDesktop?: string;
+  /** 모바일에서 보이는 라벨 */
+  backLabelMobile?: string;
+};
+
+const moods = [
+  { id: "happy", label: "Happy", emoji: "😊" },
+  { id: "sad", label: "Sad", emoji: "😢" },
+  { id: "angry", label: "Angry", emoji: "😡" },
+  { id: "chill", label: "Chill", emoji: "😌" },
+];
+
+export default function DiaryEditor({
+  mode,
+  date,
+  initialContent = "",
+  initialMood = null,
+  initialTodos = [],
+  backHref = "/",
+  backLabelDesktop = "Back",
+  backLabelMobile = "Back to Home",
+}: DiaryEditorProps) {
   const router = useRouter();
+
+  // 🔹 기존 state 그대로
   const [saving, setSaving] = useState(false);
-
-  const [content, setContent] = useState("");
-  const [mood, setMood] = useState<string | null>(null);
-
-  // ✅ TODO SECTION 상태
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const [content, setContent] = useState(initialContent);
+  const [mood, setMood] = useState<string | null>(initialMood);
+  const [todos, setTodos] = useState<Todo[]>(initialTodos);
   const [newTodo, setNewTodo] = useState("");
 
-  const moods = [
-    { id: "happy", label: "Happy", emoji: "😊" },
-    { id: "sad", label: "Sad", emoji: "😢" },
-    { id: "angry", label: "Angry", emoji: "😡" },
-    { id: "chill", label: "Chill", emoji: "😌" },
-  ];
+  // 🔹 initial 값이 바뀌어도 state 갱신되도록
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent]);
+
+  useEffect(() => {
+    setMood(initialMood ?? null);
+  }, [initialMood]);
+
+  useEffect(() => {
+    setTodos(initialTodos);
+  }, [initialTodos]);
 
   const handleSaveDiary = async () => {
     try {
       setSaving(true);
 
-      // 1) 로그인 유저 정보 가져오기
+      // 1) 로그인 유저 정보
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user;
       if (!user) {
@@ -52,33 +95,26 @@ export default function DiaryPage() {
         return;
       }
 
-      const userId = user.id; // Supabase auth.users의 id (uuid)
+      const userId = user.id; // Supabase auth.users id
 
-      // 2) 오늘 날짜 만들기 (YYYY-MM-DD)
-      const today = new Date();
-      const entryDate = today.toISOString().slice(0, 10); // '2025-12-03'
-
-      // 3) 백엔드에 보낼 데이터 (DiaryRequest와 맞춤)
+      // 2) 서버에 보낼 payload (DiaryRequest와 맞춰야 함)
       const diaryData = {
         userId,
-        entryDate, // 서버에서는 LocalDate로 파싱
+        entryDate: date, // ★ props로 받은 날짜 사용
         content,
-        mood: mood ?? "chill", // mood가 null일 경우 대비 기본값
+        mood: mood ?? "chill",
         todo: JSON.stringify(todos),
         reflection:
           todos
             .map((t) => t.reflection)
             .filter(Boolean)
             .join("\n") || "",
-        illustrationUrl: null, // 나중에 AI 연결하면 채우기
+        illustrationUrl: null,
       };
 
-      // 4) 백엔드 호출
       const res = await fetch("http://localhost:8080/api/diaries", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(diaryData),
       });
 
@@ -89,7 +125,7 @@ export default function DiaryPage() {
         return;
       }
 
-      // 5) 성공하면 Board로 이동
+      // 4) 성공 후 보드로
       router.push("/diary-board");
     } catch (err) {
       console.error("Error saving diary:", err);
@@ -120,6 +156,11 @@ export default function DiaryPage() {
     );
   };
 
+  const clearAll = () => {
+    setContent("");
+    setTodos([]);
+  };
+
   return (
     <div className="relative min-h-screen font-mono bg-[#f4f3ee] text-black overflow-x-hidden">
       {/* 배경 질감 */}
@@ -132,7 +173,7 @@ export default function DiaryPage() {
       ></div>
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        {/* Top Bar */}
+        {/* Top Bar – 기존 디자인 그대로 */}
         <nav className="w-full border-b-4 border-black bg-white/70 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 font-black text-xl md:text-2xl tracking-tighter">
@@ -165,7 +206,7 @@ export default function DiaryPage() {
           </div>
         </nav>
 
-        {/* Main content */}
+        {/* Main content – 기존 레이아웃 그대로 */}
         <main className="flex-1 max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10">
           {/* 상단 타이틀 */}
           <div className="flex items-center justify-between mb-6 md:mb-8">
@@ -182,11 +223,11 @@ export default function DiaryPage() {
             </div>
 
             <Link
-              href="/"
+              href={backHref}
               className="hidden md:inline-flex items-center gap-1 px-3 py-2 border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm font-bold hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back
+              {backLabelDesktop}
             </Link>
           </div>
 
@@ -236,7 +277,7 @@ export default function DiaryPage() {
             </section>
           </div>
 
-          {/* ✅ 3. To-Do & Reflection Section */}
+          {/* 3. To-Do & Reflection Section */}
           <section className="mt-10 bg-[#FFFBF0] border-4 border-black rounded-2xl p-4 md:p-6 shadow-[8px_8px_0px_rgba(0,0,0,1)] relative">
             <div className="absolute -top-3 left-4 bg-black text-white px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" />
@@ -334,23 +375,20 @@ export default function DiaryPage() {
             </div>
           </section>
 
-          {/* Bottom actions (Generate / Save) */}
+          {/* Bottom actions */}
           <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <Link
-              href="/"
+              href={backHref}
               className="md:hidden inline-flex items-center gap-1 px-3 py-2 border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm font-bold hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Home
+              {backLabelMobile}
             </Link>
 
             <button
               type="button"
               className="px-4 py-2 border-2 border-black bg-white shadow-[4px_4px_0px_rgba(0,0,0,1)] text-xs md:text-sm font-bold rounded-full hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all"
-              onClick={() => {
-                setContent("");
-                setTodos([]);
-              }}
+              onClick={clearAll}
             >
               Clear all for today
             </button>
@@ -359,7 +397,7 @@ export default function DiaryPage() {
               <button
                 type="button"
                 className="px-4 md:px-6 py-2 border-2 border-black bg-[#FFBF69] shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl flex items-center gap-2 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all"
-                // TODO: 여기에 나중에 AI generate 호출
+                // TODO: 나중에 AI generate 연결
               >
                 <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
                 Generate Illustration
@@ -368,9 +406,10 @@ export default function DiaryPage() {
               <button
                 type="button"
                 onClick={handleSaveDiary}
-                className="px-4 md:px-6 py-2 border-2 border-black bg-[#4D96FF] text-white shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                disabled={saving}
+                className="px-4 md:px-6 py-2 border-2 border-black bg-[#4D96FF] text-white shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60"
               >
-                Save Diary
+                {saving ? "Saving..." : "Save Diary"}
               </button>
             </div>
           </div>

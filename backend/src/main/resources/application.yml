@@ -3,9 +3,8 @@ spring:
     name: diary-backend
 
   datasource:
-    datasource:
-      url: jdbc:postgresql://db.eensskjncsooyuxbfokm.supabase.co:5432/postgres?user=postgres&password=Lakezzang123@&sslmode=require
-      driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://db.eensskjncsooyuxbfokm.supabase.co:5432/postgres?user=postgres&password=Lakezzang123@&sslmode=require
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
@@ -14,4 +13,3 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
-
