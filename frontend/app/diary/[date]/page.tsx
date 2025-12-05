@@ -16,6 +16,7 @@ type DiaryResponse = {
   content: string | null;
   todo: string | null;
   reflection: string | null;
+  illustrationUrl: string | null;
 };
 
 export default function DiaryByDatePage() {
@@ -26,6 +27,7 @@ export default function DiaryByDatePage() {
     content: string;
     mood: string | null;
     todos: Todo[];
+    illustrationUrl: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,6 +52,7 @@ export default function DiaryByDatePage() {
             content: "",
             mood: null,
             todos: [],
+            illustrationUrl: null,
           });
           return;
         }
@@ -73,6 +76,7 @@ export default function DiaryByDatePage() {
           content: d.content ?? "",
           mood: d.mood ?? null,
           todos,
+          illustrationUrl: d.illustrationUrl ?? null,
         });
       } catch (e) {
         console.error("Failed to load diary", e);
@@ -105,6 +109,7 @@ export default function DiaryByDatePage() {
       initialContent={initialData.content}
       initialMood={initialData.mood}
       initialTodos={initialData.todos}
+      initialIllustrationUrl={initialData.illustrationUrl}
       backHref="/diary-board"
       backLabelDesktop="Back to board"
       backLabelMobile="Back to board"

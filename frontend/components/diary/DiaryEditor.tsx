@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image"; // ⭐ 추가
 import { useRouter } from "next/navigation";
 import {
   BookHeart,
@@ -35,6 +36,8 @@ type DiaryEditorProps = {
   initialContent?: string;
   initialMood?: string | null;
   initialTodos?: Todo[];
+  // ⭐ 추가: 일러스트 URL (edit 모드에서 내려옴)
+  initialIllustrationUrl?: string | null;
   /** 뒤로가기 버튼 링크 (기본: "/") */
   backHref?: string;
   /** 데스크탑에서 보이는 라벨 */
@@ -56,6 +59,7 @@ export default function DiaryEditor({
   initialContent = "",
   initialMood = null,
   initialTodos = [],
+  initialIllustrationUrl = null, // ⭐ 기본값 추가
   backHref = "/",
   backLabelDesktop = "Back",
   backLabelMobile = "Back to Home",
@@ -67,6 +71,10 @@ export default function DiaryEditor({
   const [content, setContent] = useState(initialContent);
   const [mood, setMood] = useState<string | null>(initialMood);
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
+
+  // ⭐ 일러스트는 단순히 읽기 전용이라 state로 안 빼고 prop 그대로 사용해도 됨
+  //   (원하면 여기서 useState(initialIllustrationUrl) 써도 되지만, 지금은 안 건드림)
+
   const [newTodo, setNewTodo] = useState("");
 
   // 🔹 initial 값이 바뀌어도 state 갱신되도록
@@ -112,7 +120,8 @@ export default function DiaryEditor({
         illustrationUrl: null,
       };
 
-      const res = await fetch("http://localhost:8080/api/diaries", {
+      // ⭐ 여기서 하드코딩 대신 API_BASE_URL 사용
+      const res = await fetch(`${API_BASE_URL}/api/diaries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(diaryData),
@@ -253,7 +262,7 @@ export default function DiaryEditor({
               </div>
             </section>
 
-            {/* Right: Comic preview placeholder */}
+            {/* Right: Comic preview */}
             <section className="bg-[#FFD23F] border-4 border-black rounded-2xl p-4 md:p-6 shadow-[8px_8px_0px_rgba(0,0,0,1)] relative transform md:-rotate-1">
               <div className="absolute -top-3 left-4 bg-black text-white px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
@@ -261,18 +270,34 @@ export default function DiaryEditor({
               </div>
 
               <div className="w-full h-64 md:h-80 bg-white border-4 border-black rounded-xl flex flex-col items-center justify-center gap-3 shadow-[6px_6px_0px_rgba(0,0,0,1)]">
-                <ImageIcon className="w-10 h-10 md:w-12 md:h-12 stroke-[2.5px]" />
-                <p className="text-sm md:text-base font-bold max-w-xs text-center">
-                  This is where your{" "}
-                  <span className="underline decoration-2">cartoon</span>{" "}
-                  illustration will appear.
-                </p>
-                <p className="text-xs md:text-sm text-gray-600 max-w-xs text-center">
-                  Later, we&apos;ll generate a panel that matches your story &
-                  mood:{" "}
-                  <span className="font-bold">“{mood ?? "choose a mood"}”</span>
-                  .
-                </p>
+                {initialIllustrationUrl ? (
+                  // ⭐ 실제 일러스트가 있을 때: 이미지 렌더링
+                  <Image
+                    src={initialIllustrationUrl}
+                    alt="Diary illustration"
+                    width={512}
+                    height={512}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  // ⭐ 없을 때: 기존 플레이스홀더 유지 (디자인 그대로)
+                  <>
+                    <ImageIcon className="w-10 h-10 md:w-12 md:h-12 stroke-[2.5px]" />
+                    <p className="text-sm md:text-base font-bold max-w-xs text-center">
+                      This is where your{" "}
+                      <span className="underline decoration-2">cartoon</span>{" "}
+                      illustration will appear.
+                    </p>
+                    <p className="text-xs md:text-sm text-gray-600 max-w-xs text-center">
+                      Later, we&apos;ll generate a panel that matches your story
+                      & mood:{" "}
+                      <span className="font-bold">
+                        “{mood ?? "choose a mood"}”
+                      </span>
+                      .
+                    </p>
+                  </>
+                )}
               </div>
             </section>
           </div>

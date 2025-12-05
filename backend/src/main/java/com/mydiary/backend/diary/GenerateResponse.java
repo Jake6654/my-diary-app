@@ -1,4 +1,4 @@
 package com.mydiary.backend.diary;
 
-public class DiaryPromptService {
+public record GenerateResponse() {
 }
