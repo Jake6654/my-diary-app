@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+supabase
+python-dotenv
+Pillow
+
+# FLUX + Diffusers 쪽
+diffusers
+transformers
+accelerate
+safetensors
+torch       # 나중에 본인 환경에 맞게 설치 조정 가능
