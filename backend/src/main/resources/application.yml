@@ -3,17 +3,17 @@ spring:
     name: diary-backend
 
   datasource:
-    # ⬇️ Supabase가 보여준 Session pooler 연결 문자열 기준
-    url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
-    username: postgres.eensskjncsooyuxbfokm # Supabase에서 복사한 사용자명
-    password: Lakezzang123@ # 네 DB 비밀번호
+    # ✅ Supabase Direct connection (Database 탭 → Direct connection 에서 복사)
+    url: jdbc:postgresql://db.eensskjncsooyuxbfokm.supabase.co:5432/postgres?sslmode=require
+    username: postgres # ⬅ 이거 중요! (pooler 계정 아님)
+    password: Lakezzang123@ # 네 DB 비번
     driver-class-name: org.postgresql.Driver
 
     hikari:
-      maximum-pool-size: 3 # 🔥 핵심: 풀 사이즈 확 줄이기
+      maximum-pool-size: 5 # Free/소규모에 충분
       minimum-idle: 1
-      idle-timeout: 30000 # 30초
-      connection-timeout: 20000 # 20초
+      idle-timeout: 30000
+      connection-timeout: 20000
 
   jpa:
     hibernate:

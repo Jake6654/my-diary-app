@@ -7,12 +7,10 @@ import { supabase } from "@/lib/supabaseClient";
 import { BookHeart, Sparkles, Paintbrush, PenTool } from "lucide-react";
 
 export default function Home() {
-  // 기본적인 유저의 이름, 이메일 같은 데이터는 바로바로 없데이트가 되어야 하기 때문에
-  // 그냥 프론트에서 state 로 관리, 더 깊은 데이터들은 백으로 관리하는게 정석
+  // 로그인된 유저 정보
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
-  // 1) 처음 로드될 때 현재 로그인된 유저 가져오기
   // 1) 처음 로드될 때 현재 로그인된 유저 가져오기
   useEffect(() => {
     const loadUser = async () => {
@@ -38,6 +36,7 @@ export default function Home() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
+        // 배포 환경에선 배포 URL로 바꿔 줄 것!
         redirectTo: "http://localhost:3000/auth/callback",
       },
     });
@@ -124,11 +123,11 @@ export default function Home() {
           </div>
         </nav>
 
-        {/* 2. Hero Section (이하는 기존과 동일) */}
+        {/* 2. Hero Section */}
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 mt-10 md:mt-20">
           <div className="relative bg-white border-4 border-black px-8 py-4 rounded-2xl mb-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-bounce">
             <span className="font-bold text-xl">
-              💬 Psst! Everyone's an artist here.
+              💬 Psst! Everyone&apos;s an artist here.
             </span>
             <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-r-4 border-b-4 border-black transform rotate-45"></div>
           </div>
@@ -152,13 +151,30 @@ export default function Home() {
             <span className="text-[#FF6B6B]">Masterpiece</span>.
           </p>
 
-          <Link
-            href="/diary"
-            className="text-2xl font-black px-10 py-4 bg-[#4D96FF] text-white border-4 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#3b82f6] hover:translate-y-[4px] hover:translate-x-[4px] hover:shadow-none transition-all flex items-center gap-3"
-          >
-            <PenTool className="w-8 h-8 stroke-[3px]" />
-            Start Writing
-          </Link>
+          {/* 🔹 Start Writing 버튼: 로그인 상태에 따라 분기 */}
+          {user ? (
+            // 로그인 된 경우: /diary 로 이동
+            <Link
+              href="/diary"
+              className="text-2xl font-black px-10 py-4 bg-[#4D96FF] text-white border-4 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#3b82f6] hover:translate-y-[4px] hover:translate-x-[4px] hover:shadow-none transition-all flex items-center gap-3"
+            >
+              <PenTool className="w-8 h-8 stroke-[3px]" />
+              Start Writing
+            </Link>
+          ) : (
+            // 로그인 안 된 경우: 비활성화 + 알림
+            <button
+              onClick={() =>
+                alert(
+                  "Please log in with Google to start writing your illustrated diary! ✨"
+                )
+              }
+              className="text-2xl font-black px-10 py-4 bg-[#4D96FF] text-white border-4 border-black rounded-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#3b82f6] hover:translate-y-[4px] hover:translate-x-[4px] hover:shadow-none transition-all flex items-center gap-3"
+            >
+              <PenTool className="w-8 h-8 stroke-[3px]" />
+              Start Writing
+            </button>
+          )}
         </main>
 
         {/* 3. Features Section */}
