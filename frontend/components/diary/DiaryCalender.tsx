@@ -14,6 +14,8 @@ type CalendarDay = {
   key: string;
 };
 
+type MoodKey = keyof typeof MOOD_META;
+
 function generateMonthDays(year: number, month: number): CalendarDay[] {
   const firstDay = new Date(year, month, 1);
   const firstWeekDay = firstDay.getDay();
@@ -211,7 +213,11 @@ export default function DiaryCalendar({ diaries }: DiaryCalendarProps) {
                 <div className="flex flex-col items-center justify-center flex-1 px-1 text-center">
                   {/* 🔹 mood 아이콘 + 라벨 */}
                   {(() => {
-                    const moodKey = diary.mood.toLowerCase();
+                    const rawMood = diary.mood?.toLowerCase();
+                    if (!rawMood) return null;
+
+                    if (!(rawMood in MOOD_META)) return null;
+                    const moodKey = rawMood as MoodKey;
                     const moodMeta = MOOD_META[moodKey];
                     if (!moodMeta) return null;
 
