@@ -72,7 +72,7 @@ export default function DiaryBoardPage() {
           <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 font-black text-xl md:text-2xl tracking-tighter">
               <BookHeart className="w-7 h-7 stroke-[3px]" />
-              <span>AI.Toon.Diary</span>
+              <span>Sketch My Day</span>
             </div>
 
             <div className="flex items-center gap-3 text-xs md:text-sm font-bold">

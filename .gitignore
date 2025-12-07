@@ -14,5 +14,7 @@ logs/
 # Docker (나중에 사용)
 .env
 
+ai-service/venv/
+
 # Docker Database Data
 data/

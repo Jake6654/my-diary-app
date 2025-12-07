@@ -84,7 +84,7 @@ export default function Home() {
             {/* 로고 */}
             <div className="flex items-center gap-2 font-black text-2xl tracking-tighter transform hover:-rotate-2 transition-transform cursor-pointer">
               <BookHeart className="w-8 h-8 stroke-[3px]" />
-              <span>AI.Toon.Diary</span>
+              <span>Sketch My Day</span>
             </div>
 
             {/* 오른쪽 영역: 로그인 전/후 상태에 따라 분기 */}

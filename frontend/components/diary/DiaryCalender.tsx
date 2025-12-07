@@ -4,7 +4,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { DiaryEntry, Mood, MOOD_META } from "./diaryTypes";
+import { DiaryEntry, MOODS, MOOD_META } from "./diaryTypes";
+import Image from "next/image";
 
 type CalendarDay = {
   date: Date;
@@ -131,13 +132,19 @@ export default function DiaryCalendar({ diaries }: DiaryCalendarProps) {
         </div>
 
         <div className="flex gap-2 text-[10px] md:text-xs font-bold">
-          {Object.entries(MOOD_META).map(([key, meta]) => (
+          {MOODS.map((m) => (
             <div
-              key={key}
+              key={m.id}
               className="flex items-center gap-1 px-2 py-1 border-2 border-black rounded-full bg-white"
             >
-              <span>{meta.emoji}</span>
-              <span className="hidden sm:inline">{meta.label}</span>
+              <Image
+                src={m.icon}
+                alt={m.label}
+                width={34}
+                height={34}
+                className="w-8 h-8"
+              />
+              <span className="hidden sm:inline">{m.label}</span>
             </div>
           ))}
         </div>
@@ -170,9 +177,13 @@ export default function DiaryCalendar({ diaries }: DiaryCalendarProps) {
 
           // 일기 있는 날이면 mood 색 적용
           if (diary) {
-            const moodKey = diary.mood.toLowerCase() as Mood;
-            if (MOOD_META[moodKey]) {
-              bg = MOOD_META[moodKey].color;
+            const moodKey = diary.mood.toLowerCase();
+
+            // 전역 MOODS 배열에서 mood 정보 찾기
+            const moodMeta = MOODS.find((m) => m.id === moodKey);
+
+            if (moodMeta) {
+              bg = moodMeta.color; // 예: "#FFEEAA"
             }
           }
 
@@ -197,11 +208,29 @@ export default function DiaryCalendar({ diaries }: DiaryCalendarProps) {
               </div>
 
               {diary ? (
-                <div className="flex flex-col items-center justify-center flex-1">
-                  <span className="text-lg">
-                    {MOOD_META[diary.mood.toLowerCase() as Mood]?.emoji || "📝"}
-                  </span>
-                  <p className="mt-0.5 text-[9px] md:text-[10px] text-center font-bold line-clamp-2">
+                <div className="flex flex-col items-center justify-center flex-1 px-1 text-center">
+                  {/* 🔹 mood 아이콘 + 라벨 */}
+                  {(() => {
+                    const moodKey = diary.mood.toLowerCase();
+                    const moodMeta = MOOD_META[moodKey];
+                    if (!moodMeta) return null;
+
+                    return (
+                      <div className="mb-1 flex items-center justify-center gap-1 text-[10px] md:text-xs font-bold">
+                        <Image
+                          src={moodMeta.icon}
+                          alt={moodMeta.label}
+                          width={30}
+                          height={30}
+                          className="w-8 h-8"
+                        />
+                        <span>{moodMeta.label}</span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 🔹 일기 요약 */}
+                  <p className="text-[9px] md:text-[10px] font-bold line-clamp-2">
                     {diary.summary}
                   </p>
                 </div>

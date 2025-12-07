@@ -47,22 +47,24 @@ public class DiaryController {
         diary.setMood(request.mood() != null ? request.mood().toLowerCase() : null);
         diary.setTodo(request.todo());
         diary.setReflection(request.reflection());
-        diary.setIllustrationUrl(request.illustrationUrl());
 
-        // 프론트에서 직접 illustrationUrl을 보냈다면 우선 적용
+        // 🔹 프론트에서 illustrationUrl을 보냈으면 우선 적용
         if (request.illustrationUrl() != null && !request.illustrationUrl().isBlank()) {
             diary.setIllustrationUrl(request.illustrationUrl());
         }
 
-        String imageUrl;
-        try {
-            imageUrl = fluxIllustrationClient.generateImageUrl(diary.getContent());
-        } catch (Exception e) {
-            e.printStackTrace();
-            imageUrl = null; // fallback
+        // 🔹 여기서만 새로 그림을 생성할지 말지 결정
+        if (request.generateIllustration()) {
+            try {
+                String imageUrl = fluxIllustrationClient.generateImageUrl(diary.getContent());
+                if (imageUrl != null && !imageUrl.isBlank()) {
+                    diary.setIllustrationUrl(imageUrl);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                // 실패해도 기존 illustrationUrl은 유지
+            }
         }
-        diary.setIllustrationUrl(imageUrl);
-
 
         // when there's no diary on a day
         LocalDateTime now = LocalDateTime.now();
