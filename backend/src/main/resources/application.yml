@@ -3,12 +3,12 @@ spring:
     name: diary-backend
 
   datasource:
-    # ⬇️ Supabase Session Pooler 주소
-    url: postgresql://postgres.eensskjncsooyuxbfokm:Lakezzang123@@aws-1-us-east-1.pooler.supabase.com:5432/postgres
+    url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres
+    username: postgres.eensskjncsooyuxbfokm
+    password: ${DB_PASSWORD} # 👉 Render 환경변수로 분리
     driver-class-name: org.postgresql.Driver
 
     hikari:
-      # 🔥 최대 연결 수를 확 줄여서 pool_size 넘지 않게
       maximum-pool-size: 3
       minimum-idle: 1
       idle-timeout: 30000 # 30초
