@@ -3,7 +3,9 @@ spring:
     name: diary-backend
 
   datasource:
-    url: jdbc:postgresql://db.eensskjncsooyuxbfokm.supabase.co:5432/postgres?user=postgres&password=Lakezzang123@&sslmode=require
+    url: jdbc:postgresql://db.eensskjncsooyuxbfokm.supabase.co:5432/postgres?sslmode=require
+    username: postgres
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -13,6 +15,10 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
 ai:
   flux:
     base-url: "http://34.21.94.52:8000"
+
+server:
+  port: ${PORT:8080}
