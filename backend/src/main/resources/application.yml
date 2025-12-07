@@ -3,8 +3,8 @@ spring:
     name: diary-backend
 
   datasource:
-    url: jdbc:postgresql://db.eensskjncsooyuxbfokm.supabase.co:5432/postgres?sslmode=require
-    username: postgres
+    url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
+    username: postgres.eensskjncsooyuxbfokm
     password: Lakezzang123@
     driver-class-name: org.postgresql.Driver
 
