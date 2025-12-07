@@ -243,7 +243,7 @@ export default function DiaryEditor({
           <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 font-black text-xl md:text-2xl tracking-tighter">
               <BookHeart className="w-7 h-7 stroke-[3px]" />
-              <span>AI.Toon.Diary</span>
+              <span>Sketch My Day</span>
             </div>
 
             <div className="flex items-center gap-3 text-xs md:text-sm">
@@ -315,7 +315,7 @@ export default function DiaryEditor({
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Morning: write freely about your plans and feelings. Night: add what actually happened."
+                placeholder="Share what you experienced or felt today. Writing often helps your heart feel a bit lighter."
                 className="w-full h-64 md:h-80 border-2 border-black rounded-xl p-3 text-sm md:text-base resize-none focus:outline-none focus:ring-4 focus:ring-[#4D96FF]/40 bg-[#fffdf7]"
               />
               <div className="mt-2 flex justify-between text-xs font-bold text-gray-500">
