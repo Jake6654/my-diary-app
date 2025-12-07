@@ -1,7 +1,7 @@
 fastapi==0.110.0
 uvicorn==0.29.0
 python-dotenv==1.0.1
-Pillow==10.3.0
+Pillow==11.0.0
 
 # supabase 최신 버전(2.x) – httpx 0.27이랑 잘 맞음
 supabase==2.25.0

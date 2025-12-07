@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image"; // ⭐ 추가
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   BookHeart,
@@ -15,6 +15,7 @@ import {
   Plus,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { MOODS } from "./diaryTypes";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
@@ -32,26 +33,17 @@ type DiaryEditorProps = {
   mode: DiaryEditorMode;
   /** YYYY-MM-DD */
   date: string;
-  /** 기존 일기 열 때 채워넣을 값들 (없으면 빈 상태) */
+  /** 기존 일기 내용 */
   initialContent?: string;
   initialMood?: string | null;
   initialTodos?: Todo[];
-  // ⭐ 추가: 일러스트 URL (edit 모드에서 내려옴)
+  /** 이미 생성된 일러스트가 있을 경우 */
   initialIllustrationUrl?: string | null;
   /** 뒤로가기 버튼 링크 (기본: "/") */
   backHref?: string;
-  /** 데스크탑에서 보이는 라벨 */
   backLabelDesktop?: string;
-  /** 모바일에서 보이는 라벨 */
   backLabelMobile?: string;
 };
-
-const moods = [
-  { id: "happy", label: "Happy", emoji: "😊" },
-  { id: "sad", label: "Sad", emoji: "😢" },
-  { id: "angry", label: "Angry", emoji: "😡" },
-  { id: "chill", label: "Chill", emoji: "😌" },
-];
 
 export default function DiaryEditor({
   mode,
@@ -59,25 +51,28 @@ export default function DiaryEditor({
   initialContent = "",
   initialMood = null,
   initialTodos = [],
-  initialIllustrationUrl = null, // ⭐ 기본값 추가
+  initialIllustrationUrl = null,
   backHref = "/",
   backLabelDesktop = "Back",
   backLabelMobile = "Back to Home",
 }: DiaryEditorProps) {
   const router = useRouter();
 
-  // 🔹 기존 state 그대로
-  const [saving, setSaving] = useState(false);
   const [content, setContent] = useState(initialContent);
   const [mood, setMood] = useState<string | null>(initialMood);
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
-
-  // ⭐ 일러스트는 단순히 읽기 전용이라 state로 안 빼고 prop 그대로 사용해도 됨
-  //   (원하면 여기서 useState(initialIllustrationUrl) 써도 되지만, 지금은 안 건드림)
-
   const [newTodo, setNewTodo] = useState("");
 
-  // 🔹 initial 값이 바뀌어도 state 갱신되도록
+  // 🔹 그림 관련 상태
+  const [illustrationUrl, setIllustrationUrl] = useState<string | null>(
+    initialIllustrationUrl ?? null
+  );
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // 🔹 저장 상태
+  const [saving, setSaving] = useState(false);
+
+  // initial 값이 바뀌어도 state 갱신되도록
   useEffect(() => {
     setContent(initialContent);
   }, [initialContent]);
@@ -90,25 +85,26 @@ export default function DiaryEditor({
     setTodos(initialTodos);
   }, [initialTodos]);
 
+  useEffect(() => {
+    setIllustrationUrl(initialIllustrationUrl ?? null);
+  }, [initialIllustrationUrl]);
+
   const handleSaveDiary = async () => {
     try {
       setSaving(true);
 
-      // 1) 로그인 유저 정보
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData.session?.user;
       if (!user) {
         alert("You need to log in to save your diary.");
-        setSaving(false);
         return;
       }
 
-      const userId = user.id; // Supabase auth.users id
+      const userId = user.id;
 
-      // 2) 서버에 보낼 payload (DiaryRequest와 맞춰야 함)
       const diaryData = {
         userId,
-        entryDate: date, // ★ props로 받은 날짜 사용
+        entryDate: date,
         content,
         mood: mood ?? "chill",
         todo: JSON.stringify(todos),
@@ -117,10 +113,11 @@ export default function DiaryEditor({
             .map((t) => t.reflection)
             .filter(Boolean)
             .join("\n") || "",
-        illustrationUrl: null,
+        // 🔹 이미 생성된 일러스트가 있다면 그대로 저장
+        illustrationUrl,
+        generateIllustration: false, // 이 호출에서는 새로 생성하지 않음
       };
 
-      // ⭐ 여기서 하드코딩 대신 API_BASE_URL 사용
       const res = await fetch(`${API_BASE_URL}/api/diaries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -130,17 +127,76 @@ export default function DiaryEditor({
       if (!res.ok) {
         console.error("Failed to save diary", await res.text());
         alert("Failed to save diary. Please try again.");
-        setSaving(false);
         return;
       }
 
-      // 4) 성공 후 보드로
       router.push("/diary-board");
     } catch (err) {
       console.error("Error saving diary:", err);
       alert("Unexpected error while saving diary.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGenerateIllustration = async () => {
+    if (!content.trim()) {
+      alert("Please write something first!");
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData.session?.user;
+      if (!user) {
+        alert("You need to log in.");
+        return;
+      }
+
+      if (content.trim().length < 10) {
+        alert("Write a bit more so AI can understand your day 😊");
+        return;
+      }
+
+      const userId = user.id;
+
+      const diaryData = {
+        userId,
+        entryDate: date,
+        content,
+        mood: mood ?? "chill",
+        todo: JSON.stringify(todos),
+        reflection:
+          todos
+            .map((t) => t.reflection)
+            .filter(Boolean)
+            .join("\n") || "",
+        // 현재 갖고 있는 url(있으면) 함께 전달
+        illustrationUrl,
+        generateIllustration: true, // 🔹 이 호출에서는 새로 그림 생성
+      };
+
+      const res = await fetch(`${API_BASE_URL}/api/diaries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(diaryData),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to generate illustration", await res.text());
+        alert("Failed to generate illustration. Please try again.");
+        return;
+      }
+
+      const saved = await res.json();
+      setIllustrationUrl(saved.illustrationUrl); // 🔹 서버에서 받은 url을 프리뷰에 즉시 반영
+    } catch (err) {
+      console.error("Error generating illustration:", err);
+      alert("Unexpected error while generating illustration.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -182,7 +238,7 @@ export default function DiaryEditor({
       ></div>
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        {/* Top Bar – 기존 디자인 그대로 */}
+        {/* Top Bar */}
         <nav className="w-full border-b-4 border-black bg-white/70 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 font-black text-xl md:text-2xl tracking-tighter">
@@ -195,18 +251,24 @@ export default function DiaryEditor({
                 Today&apos;s mood:
               </span>
               <div className="flex gap-2">
-                {moods.map((m) => (
+                {MOODS.map((m) => (
                   <button
                     key={m.id}
                     onClick={() => setMood(m.id)}
                     className={`px-2 py-1 border-2 border-black bg-white rounded-full flex items-center gap-1 shadow-[3px_3px_0px_rgba(0,0,0,1)] text-xs
-                      ${
-                        mood === m.id
-                          ? "bg-[#FFD23F]"
-                          : "hover:-translate-y-[1px] transition-transform"
-                      }`}
+          ${
+            mood === m.id
+              ? "bg-[#FFD23F]"
+              : "hover:-translate-y-[1px] transition-transform"
+          }`}
                   >
-                    <span>{m.emoji}</span>
+                    <Image
+                      src={m.icon}
+                      alt={m.label}
+                      width={34}
+                      height={34}
+                      className="w-8 h-8 "
+                    />
                     <span className="hidden sm:inline">{m.label}</span>
                   </button>
                 ))}
@@ -215,7 +277,7 @@ export default function DiaryEditor({
           </div>
         </nav>
 
-        {/* Main content – 기존 레이아웃 그대로 */}
+        {/* Main content */}
         <main className="flex-1 max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10">
           {/* 상단 타이틀 */}
           <div className="flex items-center justify-between mb-6 md:mb-8">
@@ -270,17 +332,25 @@ export default function DiaryEditor({
               </div>
 
               <div className="w-full h-64 md:h-80 bg-white border-4 border-black rounded-xl flex flex-col items-center justify-center gap-3 shadow-[6px_6px_0px_rgba(0,0,0,1)]">
-                {initialIllustrationUrl ? (
-                  // ⭐ 실제 일러스트가 있을 때: 이미지 렌더링
+                {isGenerating ? (
+                  <>
+                    <ImageIcon className="w-10 h-10 md:w-12 md:h-12 animate-pulse stroke-[2.5px]" />
+                    <p className="text-sm md:text-base font-bold max-w-xs text-center">
+                      Generating your cartoon illustration...
+                    </p>
+                    <p className="text-xs md:text-sm text-gray-600 max-w-xs text-center">
+                      This may take a few seconds.
+                    </p>
+                  </>
+                ) : illustrationUrl ? (
                   <Image
-                    src={initialIllustrationUrl}
+                    src={illustrationUrl}
                     alt="Diary illustration"
                     width={512}
                     height={512}
                     className="w-full h-full object-cover rounded-lg"
                   />
                 ) : (
-                  // ⭐ 없을 때: 기존 플레이스홀더 유지 (디자인 그대로)
                   <>
                     <ImageIcon className="w-10 h-10 md:w-12 md:h-12 stroke-[2.5px]" />
                     <p className="text-sm md:text-base font-bold max-w-xs text-center">
@@ -290,7 +360,7 @@ export default function DiaryEditor({
                     </p>
                     <p className="text-xs md:text-sm text-gray-600 max-w-xs text-center">
                       Later, we&apos;ll generate a panel that matches your story
-                      & mood:{" "}
+                      &amp; mood:{" "}
                       <span className="font-bold">
                         “{mood ?? "choose a mood"}”
                       </span>
@@ -421,18 +491,19 @@ export default function DiaryEditor({
             <div className="flex gap-3">
               <button
                 type="button"
-                className="px-4 md:px-6 py-2 border-2 border-black bg-[#FFBF69] shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl flex items-center gap-2 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all"
-                // TODO: 나중에 AI generate 연결
+                onClick={handleGenerateIllustration}
+                disabled={isGenerating}
+                className="px-4 md:px-6 py-2 border-2 border-black bg-[#FFBF69] shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl flex items-center gap-2 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[4px_4px_0px_rgba(0,0,0,1)]"
               >
                 <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
-                Generate Illustration
+                {isGenerating ? "Generating..." : "Generate Illustration"}
               </button>
 
               <button
                 type="button"
                 onClick={handleSaveDiary}
                 disabled={saving}
-                className="px-4 md:px-6 py-2 border-2 border-black bg-[#4D96FF] text-white shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60"
+                className="px-4 md:px-6 py-2 border-2 border-black bg-[#4D96FF] text-white shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60"
               >
                 {saving ? "Saving..." : "Save Diary"}
               </button>

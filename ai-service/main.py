@@ -1,17 +1,22 @@
 import os
+import tempfile
+from uuid import uuid4
+from typing import Optional
+
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from fastapi import FastAPI
 from pydantic import BaseModel
 from PIL import Image
-import tempfile 
+
 import torch
-from diffusers import AutoPipelineForText2Image
+from diffusers import StableDiffusion3Pipeline
 from openai import OpenAI
-from uuid import uuid4
-from typing import Optional
 
 
+# ---------------------------------------------------
+# 1. 환경 변수 / 클라이언트 초기화
+# ---------------------------------------------------
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -20,6 +25,14 @@ SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "diary-illustrations")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 HUGGINGFACE_HUB_TOKEN = os.getenv("HUGGINGFACE_HUB_TOKEN")
 
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_KEY are not set")
+
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY is not set")
+
+if not HUGGINGFACE_HUB_TOKEN:
+    raise RuntimeError("HUGGINGFACE_HUB_TOKEN is not set")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -27,13 +40,17 @@ app = FastAPI()
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+# Stable Diffusion 3 Medium 파이프라인
+pipe: Optional[StableDiffusion3Pipeline] = None
+device = "cuda"
 
-pipe: AutoPipelineForText2Image | None = None
-device = "cpu"
 
-
+# ---------------------------------------------------
+# 2. Pydantic 모델
+# ---------------------------------------------------
 class UploadTestResponse(BaseModel):
     public_url: str
+
 
 class PromptRequest(BaseModel):
     diary_text: str
@@ -41,61 +58,61 @@ class PromptRequest(BaseModel):
 
 class GenerateRequest(BaseModel):
     diary_text: str
-    # 나중에 옵션 더 넣고 싶으면 여기 확장 (예: mood, style 등)
+    # 나중에 옵션(예: mood, style 등) 추가 가능
+
 
 class GenerateResponse(BaseModel):
     prompt: str
     image_url: str
 
 
-@app.post("/upload-test", response_model=UploadTestResponse)
-def upload_test():
-    # 1) 메모리에서 임시 이미지 생성 (512x512 분홍 배경)
-    img = Image.new("RGB", (512, 512), color=(255, 100, 120))
-
-     # 2) 임시 파일에 저장
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        img.save(tmp, format="PNG")
-        tmp_path = tmp.name  # 이게 실제 파일 경로
-
-    # 2) 업로드할 파일 경로 (버킷 내부)
-    file_path = "test/test-image.png"
-
-    # 3) Supabase Storage에 업로드
-    supabase.storage.from_(SUPABASE_BUCKET).upload(
-        file_path,
-        tmp_path,  # 여기에는 "파일 경로(str)"를 넘겨줘야 함
-        {"content-type": "image/png"},
-    )
-
-    # 4) Public URL 가져오기
-    public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(file_path)
-
-    return UploadTestResponse(public_url=public_url)
-
+# ---------------------------------------------------
+# 3. 유틸 함수들
+# ---------------------------------------------------
 async def build_illustration_prompt(diary_text: str) -> str:
+    """
+    OpenAI chat 모델을 사용해 일기 → Stable Diffusion 3에 최적화된
+    안정적인 soft-illustrated diary 스타일 프롬프트 생성
+    """
     template = f"""
-You are an illustration prompt generator for a cute diary-style art application.
+You are an illustration prompt generator for a cartoon-style diary application.
 
 Your job:
-1. Read the user's diary entry.
-2. Extract the main mood, activities, and key emotional themes.
-3. Create a short, clean, Flux-friendly prompt for a cute illustrated diary drawing.
+Analyze the diary entry and produce a short, clean, Stable Diffusion 3–friendly prompt
+that generates an illustration in a distinct **modern cartoon or graphic novel style**.
 
-Guidelines:
-- Style: “cute diary illustration, pastel colors, warm lighting, soft edges”
-- Include the main emotional mood (happy, sad, reflective, tired, excited, etc.)
-- Describe only 1–2 key actions or scenes from the diary
-- Keep the prompt under 40–60 words
-- Do NOT include text in the image
-- Do NOT describe multiple complex scenes
+=== Required Style (Cartoon/Comic feel) ===
+- **modern cartoon illustration, graphic novel art style**
+- **clean bold outlines**, ink line art feel
+- **cel-shaded coloring**, distinct shadows (NOT smooth painted textures)
+- warm colors but with clear contrast suitable for comics
+- expressive human characters with **natural proportions** (stylized but NOT chibi or oversized heads)
+- clear composition, looks like a panel from a comic book
 
-Return ONLY the final prompt, nothing else.
+=== Character Rules ===
+- The main character must be **a human** with normal proportions.
+- Facial expressions should be expressive and cartoonish but not overly exaggerated.
+- Avoid: photorealism, chibi style, anime style, fuzzy textures, 3D render.
 
-Diary:
-\"\"\"
-{diary_text}
-\"\"\"
+=== Scene Composition Rules ===
+- Depict only one clear scene capturing the main event or mood.
+- Include context from the diary (place, activity, objects).
+- Keep the background slightly simplified, typical of comic art.
+
+=== Forbidden Outputs ===
+- photorealistic, hyperrealistic, photograph
+- chibi, oversized heads, baby-like proportions
+- painterly, watercolor, blurred edges, soft pastel style
+- text, speech bubbles, panels borders, letters, logos
+
+=== Output Formatting ===
+Return ONLY the final prompt text with:
+- A single concise sentence describing the scene and style.
+- No explanation
+- No diary restatement
+
+Diary Entry:
+\"\"\"{diary_text}\"\"\"
 """
 
     completion = client.chat.completions.create(
@@ -103,25 +120,31 @@ Diary:
         messages=[{"role": "user", "content": template}],
     )
 
-    # 새로운 OpenAI SDK는 이렇게 접근
     prompt = completion.choices[0].message.content
-    return prompt
+    return prompt.strip()
 
 def generate_and_upload_image(prompt: str) -> str:
     """
-    1) Stable Diffusion Turbo로 이미지 생성
+    1) Stable Diffusion 3 Medium으로 이미지 생성
     2) Supabase Storage에 PNG 업로드
     3) Public URL 반환
     """
     if pipe is None:
-        raise RuntimeError("Flux pipeline is not loaded yet")
+        raise RuntimeError("Stable Diffusion 3 pipeline is not loaded yet")
 
-    # 1) 이미지 생성 (하나만 생성)
+    # 1) 이미지 생성 (GPU 전용)
     with torch.no_grad():
         result = pipe(
             prompt=prompt,
-            num_inference_steps=1,   # 빠른 테스트용, 나중에 조절 가능
-            guidance_scale=0.0,
+            negative_prompt=(
+                "photorealistic, realistic, 3d render, "
+                "ugly, low quality, blurry, distorted, disfigured, creepy, "
+                "text, logo, watermark, caption, nsfw"
+            ),
+            num_inference_steps=16,   # 필요하면 12~20 사이에서 조정
+            guidance_scale=6.0,       # 카툰/프롬프트 반영 강하게
+            height=768,
+            width=768,
         )
     image = result.images[0]  # PIL.Image
 
@@ -145,6 +168,34 @@ def generate_and_upload_image(prompt: str) -> str:
     return public_url
 
 
+# ---------------------------------------------------
+# 4. 엔드포인트들
+# ---------------------------------------------------
+@app.post("/upload-test", response_model=UploadTestResponse)
+def upload_test():
+    """
+    테스트용: 분홍색 이미지 하나 만들어서 Supabase에 올리고 URL 반환
+    """
+    img = Image.new("RGB", (512, 512), color=(255, 100, 120))
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        img.save(tmp, format="PNG")
+        tmp_path = tmp.name
+
+    file_path = "test/test-image.png"
+
+    supabase.storage.from_(SUPABASE_BUCKET).upload(
+        file_path,
+        tmp_path,
+        {
+            "content-type": "image/png",
+            "x-upsert": "true",
+        },
+    )
+
+    public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(file_path)
+    return UploadTestResponse(public_url=public_url)
+
 
 @app.post("/generate-prompt")
 async def generate_prompt(req: PromptRequest):
@@ -163,22 +214,34 @@ async def generate(req: GenerateRequest):
     # 3) 프롬프트 + 이미지 URL 반환
     return GenerateResponse(prompt=prompt, image_url=image_url)
 
+
+# ---------------------------------------------------
+# 5. 모델 로딩 (startup hook, GPU only)
+# ---------------------------------------------------
 @app.on_event("startup")
 def load_model():
+    """
+    Stable Diffusion 3 Medium 파이프라인 로딩 (GPU only)
+    - CUDA가 없으면 바로 에러 발생시키도록 함
+    - L4 기준: float16 + 풀 GPU 로딩
+    """
     global pipe, device
 
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA is not available. This service requires a GPU (e.g., L4).")
 
-    print("[SD-TURBO] using device:", device)
+    device = "cuda"
+    print("[SD3-MEDIUM] using device:", device)
 
-    pipe = AutoPipelineForText2Image.from_pretrained(
-        "stabilityai/sd-turbo",
-        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        variant="fp16" if device == "cuda" else None,
-    ).to(device)
+    # L4 기준 float16 + GPU 로딩
+    pipe_local = StableDiffusion3Pipeline.from_pretrained(
+        "stabilityai/stable-diffusion-3-medium-diffusers",
+        token=HUGGINGFACE_HUB_TOKEN,
+        torch_dtype=torch.float16,
+    )
 
-    print("[SD-TURBO] model loaded.")
+    # 완전 GPU 로딩
+    pipe_local.to(device)
 
+    print("[SD3-MEDIUM] model loaded on GPU (no CPU offload).")
+    globals()["pipe"] = pipe_local
