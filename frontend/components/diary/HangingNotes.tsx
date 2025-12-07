@@ -67,10 +67,7 @@ export default function HangingNotes({
                     <div className="text-xs font-bold text-gray-700 mb-1">
                       {diary.entryDate}
                     </div>
-                    <div className="flex items-center gap-1 text-xs font-bold mb-2">
-                      <span>{moodMeta.emoji}</span>
-                      <span>{moodMeta.label}</span>
-                    </div>
+                    <div className="flex items-center gap-1 text-xs font-bold mb-2"></div>
                     <p className="text-xs md:text-sm leading-snug line-clamp-6 flex-1">
                       {diary.summary}
                     </p>
