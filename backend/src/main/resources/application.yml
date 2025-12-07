@@ -4,9 +4,7 @@ spring:
 
   datasource:
     # ⬇️ Supabase Session Pooler 주소
-    url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
-    username: postgres.eensskjncsooyuxbfokm
-    password: Lakezzang123@
+    url: postgresql://postgres.eensskjncsooyuxbfokm:Lakezzang123@@aws-1-us-east-1.pooler.supabase.com:5432/postgres
     driver-class-name: org.postgresql.Driver
 
     hikari:
