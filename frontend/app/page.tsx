@@ -187,7 +187,7 @@ export default function Home() {
 
         {/* 4. Footer */}
         <footer className="py-8 text-center font-bold border-t-4 border-black bg-white">
-          © 2025 AI.Toon.Diary | Cheering for your day! 🎨
+          © 2025 AI.Toon.Diary | Developed by Jae-Hyuk 🎨
         </footer>
       </div>
     </div>
