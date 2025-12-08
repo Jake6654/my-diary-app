@@ -5,15 +5,15 @@ spring:
   datasource:
     url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres
     username: postgres.eensskjncsooyuxbfokm
-    password: ${DB_PASSWORD} # 👉 Render 환경변수로 분리
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
     hikari:
       maximum-pool-size: 3
       minimum-idle: 1
-      idle-timeout: 30000 # 30초
-      max-lifetime: 600000 # 10분
-      connection-timeout: 20000 # 20초
+      idle-timeout: 30000
+      max-lifetime: 600000
+      connection-timeout: 20000
 
   jpa:
     hibernate:

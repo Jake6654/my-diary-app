@@ -48,12 +48,12 @@ public class DiaryController {
         diary.setTodo(request.todo());
         diary.setReflection(request.reflection());
 
-        // 🔹 프론트에서 illustrationUrl을 보냈으면 우선 적용
+        // 프론트에서 illustrationUrl을 보냈으면 우선 적용
         if (request.illustrationUrl() != null && !request.illustrationUrl().isBlank()) {
             diary.setIllustrationUrl(request.illustrationUrl());
         }
 
-        // 🔹 여기서만 새로 그림을 생성할지 말지 결정
+        //  여기서만 새로 그림을 생성할지 말지 결정
         if (request.generateIllustration()) {
             try {
                 String imageUrl = fluxIllustrationClient.generateImageUrl(diary.getContent());
