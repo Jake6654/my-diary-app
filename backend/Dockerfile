@@ -1,22 +1,22 @@
-# 1단계: Gradle로 Spring Boot JAR 빌드
-FROM gradle:8.10.1-jdk21 AS build
+# 1단계: 빌드
+FROM eclipse-temurin:21-jdk AS build
+
 WORKDIR /app
 
-# Gradle 설정 파일들 복사
-COPY build.gradle settings.gradle gradlew gradlew.bat ./
-COPY gradle ./gradle
-
-COPY src ./src
+# 컨텍스트 루트 기준이므로 모두 backend/ 를 붙여야 함
+COPY backend/gradle ./gradle
+COPY backend/build.gradle backend/settings.gradle backend/gradlew backend/gradlew.bat ./
+COPY backend/src ./src
 
 RUN ./gradlew bootJar -x test
 
-# 2단계: 실제 런타임 이미지 (JRE만)
+# 2단계: 런타임
 FROM eclipse-temurin:21-jre
+
 WORKDIR /app
 
+# 위 build 단계에서 만든 jar 복사
 COPY --from=build /app/build/libs/*.jar app.jar
 
-ENV PORT=8080
 EXPOSE 8080
-
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java","-jar","/app/app.jar"]
