@@ -3,9 +3,11 @@ spring:
     name: diary-backend
 
   datasource:
-    url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
-    username: postgres.eensskjncsooyuxbfokm
-    password: ${DB_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres.eensskjncsooyuxbfokm}
+
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
     driver-class-name: org.postgresql.Driver
 
     hikari:
@@ -25,7 +27,7 @@ spring:
 
 ai:
   flux:
-    base-url: "http://34.86.240.76:8000"
+    base-url: ${AI_FLUX_URL:http://136.107.46.248:8000}
 
 server:
   port: ${PORT:8080}

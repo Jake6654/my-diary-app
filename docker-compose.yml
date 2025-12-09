@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # 1. 데이터베이스 (PostgreSQL)
@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: diarydb
     ports:
-      - "5432:5432" # PostgreSQL 
+      - "5432:5432" # PostgreSQL
     volumes:
       - ./data/db:/var/lib/postgresql/data # 데이터를 로컬 폴더에 영구 저장 (테스트용)
     restart: always
@@ -20,7 +20,5 @@ services:
     image: redis:alpine
     container_name: diary-redis
     ports:
-      - "6379:6379" # Redis 
+      - "6379:6379" # Redis
     restart: always
-
-# (참고) Python AI 서버와 Spring Boot는 나중에 코드가 완성되면 여기에 추가합니다.
