@@ -33,13 +33,10 @@ type DiaryEditorProps = {
   mode: DiaryEditorMode;
   /** YYYY-MM-DD */
   date: string;
-  /** 기존 일기 내용 */
   initialContent?: string;
   initialMood?: string | null;
   initialTodos?: Todo[];
-  /** 이미 생성된 일러스트가 있을 경우 */
   initialIllustrationUrl?: string | null;
-  /** 뒤로가기 버튼 링크 (기본: "/") */
   backHref?: string;
   backLabelDesktop?: string;
   backLabelMobile?: string;
@@ -63,16 +60,20 @@ export default function DiaryEditor({
   const [todos, setTodos] = useState<Todo[]>(initialTodos);
   const [newTodo, setNewTodo] = useState("");
 
-  // 🔹 그림 관련 상태
+  // Illustration state
   const [illustrationUrl, setIllustrationUrl] = useState<string | null>(
     initialIllustrationUrl ?? null
   );
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // 🔹 저장 상태
+  // Saving state
   const [saving, setSaving] = useState(false);
 
-  // initial 값이 바뀌어도 state 갱신되도록
+  // Mood modals
+  const [showSadModal, setShowSadModal] = useState(false);
+  const [showAngryModal, setShowAngryModal] = useState(false);
+
+  // Sync with initial props
   useEffect(() => {
     setContent(initialContent);
   }, [initialContent]);
@@ -113,9 +114,8 @@ export default function DiaryEditor({
             .map((t) => t.reflection)
             .filter(Boolean)
             .join("\n") || "",
-        // 🔹 이미 생성된 일러스트가 있다면 그대로 저장
         illustrationUrl,
-        generateIllustration: false, // 이 호출에서는 새로 생성하지 않음
+        generateIllustration: false,
       };
 
       const res = await fetch(`${API_BASE_URL}/api/diaries`, {
@@ -173,9 +173,8 @@ export default function DiaryEditor({
             .map((t) => t.reflection)
             .filter(Boolean)
             .join("\n") || "",
-        // 현재 갖고 있는 url(있으면) 함께 전달
         illustrationUrl,
-        generateIllustration: true, // 🔹 이 호출에서는 새로 그림 생성
+        generateIllustration: true,
       };
 
       const res = await fetch(`${API_BASE_URL}/api/diaries`, {
@@ -191,7 +190,7 @@ export default function DiaryEditor({
       }
 
       const saved = await res.json();
-      setIllustrationUrl(saved.illustrationUrl); // 🔹 서버에서 받은 url을 프리뷰에 즉시 반영
+      setIllustrationUrl(saved.illustrationUrl);
     } catch (err) {
       console.error("Error generating illustration:", err);
       alert("Unexpected error while generating illustration.");
@@ -226,9 +225,14 @@ export default function DiaryEditor({
     setTodos([]);
   };
 
+  const closeMoodModal = () => {
+    setShowSadModal(false);
+    setShowAngryModal(false);
+  };
+
   return (
     <div className="relative min-h-screen font-mono bg-[#f4f3ee] text-black overflow-x-hidden">
-      {/* 배경 질감 */}
+      {/* background texture */}
       <div
         className="fixed inset-0 pointer-events-none opacity-[0.03] z-0"
         style={{
@@ -254,13 +258,25 @@ export default function DiaryEditor({
                 {MOODS.map((m) => (
                   <button
                     key={m.id}
-                    onClick={() => setMood(m.id)}
+                    onClick={() => {
+                      setMood(m.id);
+                      if (m.id === "sad") {
+                        setShowSadModal(true);
+                        setShowAngryModal(false);
+                      } else if (m.id === "angry") {
+                        setShowAngryModal(true);
+                        setShowSadModal(false);
+                      } else {
+                        setShowSadModal(false);
+                        setShowAngryModal(false);
+                      }
+                    }}
                     className={`px-2 py-1 border-2 border-black bg-white rounded-full flex items-center gap-1 shadow-[3px_3px_0px_rgba(0,0,0,1)] text-xs
-          ${
-            mood === m.id
-              ? "bg-[#FFD23F]"
-              : "hover:-translate-y-[1px] transition-transform"
-          }`}
+                      ${
+                        mood === m.id
+                          ? "bg-[#FFD23F]"
+                          : "hover:-translate-y-[1px] transition-transform"
+                      }`}
                   >
                     <Image
                       src={m.icon}
@@ -269,7 +285,7 @@ export default function DiaryEditor({
                       height={34}
                       className="w-8 h-8 "
                     />
-                    <span className="hidden sm:inline">{m.label}</span>
+                    <span className="hidden.sm:inline">{m.label}</span>
                   </button>
                 ))}
               </div>
@@ -279,7 +295,7 @@ export default function DiaryEditor({
 
         {/* Main content */}
         <main className="flex-1 max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10">
-          {/* 상단 타이틀 */}
+          {/* Title */}
           <div className="flex items-center justify-between mb-6 md:mb-8">
             <div>
               <h1 className="text-3xl md:text-4xl font-black tracking-tighter flex items-center gap-2">
@@ -302,7 +318,7 @@ export default function DiaryEditor({
             </Link>
           </div>
 
-          {/* 2컬럼: Diary + Comic Preview */}
+          {/* 2 columns: Diary + Preview */}
           <div className="grid md:grid-cols-2 gap-6 md:gap-8">
             {/* Left: Text area */}
             <section className="bg-white border-4 border-black rounded-2xl p-4 md:p-6 shadow-[8px_8px_0px_rgba(0,0,0,1)] relative">
@@ -315,7 +331,7 @@ export default function DiaryEditor({
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Share what you experienced or felt today. Writing often helps your heart feel a bit lighter."
+                placeholder="Share what you experienced or felt today. Writing often helps your heart feel a bit lighter. Before you start writing, please choose your mood at the top."
                 className="w-full h-64 md:h-80 border-2 border-black rounded-xl p-3 text-sm md:text-base resize-none focus:outline-none focus:ring-4 focus:ring-[#4D96FF]/40 bg-[#fffdf7]"
               />
               <div className="mt-2 flex justify-between text-xs font-bold text-gray-500">
@@ -372,8 +388,8 @@ export default function DiaryEditor({
             </section>
           </div>
 
-          {/* 3. To-Do & Reflection Section */}
-          <section className="mt-10 bg-[#FFFBF0] border-4 border-black rounded-2xl p-4 md:p-6 shadow-[8px_8px_0px_rgba(0,0,0,1)] relative">
+          {/* 3. To-Do & Reflection */}
+          <section className="mt-10 bg[#FFFBF0] border-4 border-black rounded-2xl p-4 md:p-6 shadow-[8px_8px_0px_rgba(0,0,0,1)] relative">
             <div className="absolute -top-3 left-4 bg-black text-white px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" />
               3. Today&apos;s To-Do & Reflection
@@ -383,7 +399,7 @@ export default function DiaryEditor({
               {/* Left: Todo list */}
               <div>
                 <p className="text-xs md:text-sm font-bold text-gray-700 mb-3">
-                  Morning: write what you want to do.{" "}
+                  Morning: write what you want to do.
                   <br className="hidden md:block" />
                   Night: check what you did, and gently ask yourself “why?” for
                   the rest.
@@ -458,9 +474,10 @@ export default function DiaryEditor({
                 <p className="text-xs md:text-sm text-gray-700 leading-relaxed">
                   Instead of “I failed”, try asking:
                   <br />
-                  • Was I too tired? <br />
-                  • Did something unexpected happen? <br />• Do I need to make
-                  this task smaller tomorrow?
+                  • Was I too tired?
+                  <br />
+                  • Did something unexpected happen?
+                  <br />• Do I need to make this task smaller tomorrow?
                 </p>
                 <p className="text-xs md:text-sm text-gray-600">
                   Your To-Do list is not a judge. It&apos;s just a friendly
@@ -493,7 +510,7 @@ export default function DiaryEditor({
                 type="button"
                 onClick={handleGenerateIllustration}
                 disabled={isGenerating}
-                className="px-4 md:px-6 py-2 border-2 border-black bg-[#FFBF69] shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl flex items-center gap-2 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[4px_4px_0px_rgba(0,0,0,1)]"
+                className="px-4 md:px-6 py-2 border-2 border-black bg-[#FFBF69] shadow-[4px_4px_0px_rgba(0,0,0,1)] text-sm md:text-base font-black rounded-xl flex items-center gap-2 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-60 disabled:hover:translate-x-0.disabled:hover:translate-y-0 disabled:hover:shadow-[4px_4px_0px_rgba(0,0,0,1)]"
               >
                 <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
                 {isGenerating ? "Generating..." : "Generate Illustration"}
@@ -510,6 +527,46 @@ export default function DiaryEditor({
             </div>
           </div>
         </main>
+
+        {/* Mood modals (Sad / Angry) */}
+        {(showSadModal || showAngryModal) && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+            <div className="bg-white border-4 border-black rounded-2xl shadow-[8px_8px_0px_rgba(0,0,0,1)] max-w-sm w-[90%] p-6 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <Image
+                  src="/chill.png" // make sure this exists in /public
+                  alt="Comfort illustration"
+                  width={180}
+                  height={180}
+                  className="rounded-xl border-2 border-black object-cover"
+                />
+                <p className="text-base md:text-lg font-black">
+                  {showSadModal
+                    ? "Looks like today was a really tough day 🥺"
+                    : "You seem really frustrated today 🔥"}
+                </p>
+                <p className="text-sm md:text-base text-gray-700 leading-relaxed">
+                  On days like this, you don&apos;t have to be productive.
+                  <br />
+                  Maybe enjoy something tasty, take a warm shower, or do
+                  something small and kind for yourself.
+                  <br />
+                  <span className="font-bold">
+                    The fact that you showed up here and started writing already
+                    means you&apos;re doing your best.
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  onClick={closeMoodModal}
+                  className="mt-3 px-4 py-2 border-2 border-black bg-[#FFBF69] rounded-full text-sm font-bold shadow-[4px_4px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all"
+                >
+                  Thank you. I&apos;ll keep writing ✍️
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
