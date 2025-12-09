@@ -22,5 +22,3 @@ services:
     ports:
       - "6379:6379" # Redis 
     restart: always
-
-# (참고) Python AI 서버와 Spring Boot는 나중에 코드가 완성되면 여기에 추가합니다.
