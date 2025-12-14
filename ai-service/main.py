@@ -13,12 +13,8 @@ import torch
 from diffusers import StableDiffusion3Pipeline
 from openai import OpenAI
 
-
-# ---------------------------------------------------
-# 1. 환경 변수 / 클라이언트 초기화
-# ---------------------------------------------------
-load_dotenv()
-
+# loading env vars
+load_dotenv() 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "diary-illustrations")
@@ -40,14 +36,13 @@ app = FastAPI()
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# Stable Diffusion 3 Medium 파이프라인
+# Stable Diffusion 3 Medium pipline
 pipe: Optional[StableDiffusion3Pipeline] = None
 device = "cuda"
 
 
-# ---------------------------------------------------
-# 2. Pydantic 모델
-# ---------------------------------------------------
+# Pydantic model
+# it define and validate the structure of request and response data
 class UploadTestResponse(BaseModel):
     public_url: str
 
@@ -58,7 +53,6 @@ class PromptRequest(BaseModel):
 
 class GenerateRequest(BaseModel):
     diary_text: str
-    # 나중에 옵션(예: mood, style 등) 추가 가능
 
 
 class GenerateResponse(BaseModel):
@@ -66,48 +60,41 @@ class GenerateResponse(BaseModel):
     image_url: str
 
 
-# ---------------------------------------------------
-# 3. 유틸 함수들
-# ---------------------------------------------------
+
 async def build_illustration_prompt(diary_text: str) -> str:
-    """
-    OpenAI chat 모델을 사용해 일기 → Stable Diffusion 3에 최적화된
-    안정적인 soft-illustrated diary 스타일 프롬프트 생성
-    """
     template = f"""
-You are an illustration prompt generator for a cartoon-style diary application.
+You are an illustration prompt generator for a cartoon-style diary app.
 
 Your job:
-Analyze the diary entry and produce a short, clean, Stable Diffusion 3–friendly prompt
-that generates an illustration in a distinct **modern cartoon or graphic novel style**.
+Generate a short, Stable Diffusion 3-friendly propmt that illustartes the diary entry in a modern cartoon/ graphic novel style.
 
-=== Required Style (Cartoon/Comic feel) ===
-- **modern cartoon illustration, graphic novel art style**
-- **clean bold outlines**, ink line art feel
-- **cel-shaded coloring**, distinct shadows (NOT smooth painted textures)
-- warm colors but with clear contrast suitable for comics
-- expressive human characters with **natural proportions** (stylized but NOT chibi or oversized heads)
-- clear composition, looks like a panel from a comic book
+Required style:
+- modern cartoon illustration
+- graphic novel art style
+- clean, bold ink outlines
+- cel-shaded coloring with clear shadows
+- expressive human characters with natural proportions
+- simplified comic-style background
 
-=== Character Rules ===
+
+Character Rules:
 - The main character must be **a human** with normal proportions.
 - Facial expressions should be expressive and cartoonish but not overly exaggerated.
 - Avoid: photorealism, chibi style, anime style, fuzzy textures, 3D render.
 
-=== Scene Composition Rules ===
+Scene Composition Rules:
 - Depict only one clear scene capturing the main event or mood.
 - Include context from the diary (place, activity, objects).
 - Keep the background slightly simplified, typical of comic art.
 
-=== Forbidden Outputs ===
+Forbidden Outputs
 - photorealistic, hyperrealistic, photograph
 - chibi, oversized heads, baby-like proportions
 - painterly, watercolor, blurred edges, soft pastel style
 - text, speech bubbles, panels borders, letters, logos
 
-=== Output Formatting ===
-Return ONLY the final prompt text with:
-- A single concise sentence describing the scene and style.
+Output format:
+- One concise sentence
 - No explanation
 - No diary restatement
 

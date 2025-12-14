@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  # 1. 데이터베이스 (PostgreSQL)
+  # Database(PostgreSQL)
   postgres:
     image: postgres:16
     container_name: diary-postgres
@@ -10,15 +10,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: diarydb
     ports:
-      - "5432:5432" # PostgreSQL
+      - "5432:5432" # PostgreSQL port
     volumes:
-      - ./data/db:/var/lib/postgresql/data # 데이터를 로컬 폴더에 영구 저장 (테스트용)
-    restart: always
-
-  # 2. 메시지 브로커 (Redis) - 백엔드와 AI 서버 통신용
-  redis:
-    image: redis:alpine
-    container_name: diary-redis
-    ports:
-      - "6379:6379" # Redis
+      - ./data/db:/var/lib/postgresql/data
     restart: always
