@@ -111,15 +111,9 @@ Diary Entry:
     return prompt.strip()
 
 def generate_and_upload_image(prompt: str) -> str:
-    """
-    1) Stable Diffusion 3 Medium으로 이미지 생성
-    2) Supabase Storage에 PNG 업로드
-    3) Public URL 반환
-    """
     if pipe is None:
         raise RuntimeError("Stable Diffusion 3 pipeline is not loaded yet")
 
-    # 1) 이미지 생성 (GPU 전용)
     with torch.no_grad():
         result = pipe(
             prompt=prompt,
@@ -128,60 +122,42 @@ def generate_and_upload_image(prompt: str) -> str:
                 "ugly, low quality, blurry, distorted, disfigured, creepy, "
                 "text, logo, watermark, caption, nsfw"
             ),
-            num_inference_steps=16,   # 필요하면 12~20 사이에서 조정
-            guidance_scale=6.0,       # 카툰/프롬프트 반영 강하게
+            num_inference_steps=16,   # can adjust it bwt 12~20 if you want
+            guidance_scale=6.0,       
             height=768,
             width=768,
         )
     image = result.images[0]  # PIL.Image
 
-    # 2) 임시 파일로 저장
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        image.save(tmp, format="PNG")
-        tmp_path = tmp.name
+    # have to save temporary PNG file because the supabase storage SDK
+    # is most reliabel with a real file path not a PIL Image in memory
+    tmp_path = None
 
-    # 3) Supabase에 업로드할 경로
-    file_name = f"{uuid4().hex}.png"
-    file_path = f"generated/{file_name}"
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            image.save(tmp, format="PNG")
+            tmp_path = tmp.name
 
-    supabase.storage.from_(SUPABASE_BUCKET).upload(
-        file_path,
-        tmp_path,
-        {"content-type": "image/png"},
-    )
+        file_name = f"{uuid4().hex}.png"
+        file_path = f"generated/{file_name}"
 
-    # 4) Public URL
-    public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(file_path)
-    return public_url
+        supabase.storage.from_(SUPABASE_BUCKET).upload(
+            file_path,
+            tmp_path,
+            {"content-type": "image/png"},
+        )
 
+        # Public URL
+        public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(file_path)
+        return public_url
+    finally:
+        # Clean up the temp file to avoid filling up disk over time
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
-# ---------------------------------------------------
-# 4. 엔드포인트들
-# ---------------------------------------------------
-@app.post("/upload-test", response_model=UploadTestResponse)
-def upload_test():
-    """
-    테스트용: 분홍색 이미지 하나 만들어서 Supabase에 올리고 URL 반환
-    """
-    img = Image.new("RGB", (512, 512), color=(255, 100, 120))
-
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        img.save(tmp, format="PNG")
-        tmp_path = tmp.name
-
-    file_path = "test/test-image.png"
-
-    supabase.storage.from_(SUPABASE_BUCKET).upload(
-        file_path,
-        tmp_path,
-        {
-            "content-type": "image/png",
-            "x-upsert": "true",
-        },
-    )
-
-    public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(file_path)
-    return UploadTestResponse(public_url=public_url)
 
 
 @app.post("/generate-prompt")
@@ -192,26 +168,18 @@ async def generate_prompt(req: PromptRequest):
 
 @app.post("/generate", response_model=GenerateResponse)
 async def generate(req: GenerateRequest):
-    # 1) 프롬프트 생성 (LLM)
+    # 1. generate a prompt first
     prompt = await build_illustration_prompt(req.diary_text)
 
-    # 2) 이미지 생성 + Supabase 업로드
+    # 2. generate an image and upload it to supabase 
     image_url = generate_and_upload_image(prompt)
 
-    # 3) 프롬프트 + 이미지 URL 반환
+    # 3. return
     return GenerateResponse(prompt=prompt, image_url=image_url)
 
 
-# ---------------------------------------------------
-# 5. 모델 로딩 (startup hook, GPU only)
-# ---------------------------------------------------
 @app.on_event("startup")
 def load_model():
-    """
-    Stable Diffusion 3 Medium 파이프라인 로딩 (GPU only)
-    - CUDA가 없으면 바로 에러 발생시키도록 함
-    - L4 기준: float16 + 풀 GPU 로딩
-    """
     global pipe, device
 
     if not torch.cuda.is_available():
@@ -220,15 +188,13 @@ def load_model():
     device = "cuda"
     print("[SD3-MEDIUM] using device:", device)
 
-    # L4 기준 float16 + GPU 로딩
     pipe_local = StableDiffusion3Pipeline.from_pretrained(
         "stabilityai/stable-diffusion-3-medium-diffusers",
         token=HUGGINGFACE_HUB_TOKEN,
         torch_dtype=torch.float16,
     )
 
-    # 완전 GPU 로딩
     pipe_local.to(device)
 
-    print("[SD3-MEDIUM] model loaded on GPU (no CPU offload).")
+    print("[SD3-MEDIUM] model loaded on GPU.")
     globals()["pipe"] = pipe_local
