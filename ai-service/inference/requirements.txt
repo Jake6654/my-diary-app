@@ -1,0 +1,12 @@
+python-dotenv==1.0.1
+redis==5.0.3
+openai==1.40.0
+supabase==2.6.0
+pillow==10.4.0
+
+# GPU / Diffusion
+torch
+diffusers
+transformers
+accelerate
+safetensors

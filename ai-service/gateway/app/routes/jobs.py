@@ -10,7 +10,7 @@ It only:
   3. Pushes jobs into Redis queue
   4. Returns job status
 
-Actual inference is handled by a separate GPU worker service -> need to implement more  s
+Actual inference is handled by a separate GPU worker service -> need to implement more  
 """
 
 
